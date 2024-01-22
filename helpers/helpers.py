@@ -12,7 +12,7 @@ def download_stock_data(ticker, data_folder='data'):
         return f"Stock data for {ticker} already exists."
 
     # Download data from Yahoo Finance and save to CSV
-    stock_data = yf.download(ticker, start='2000-01-01', end=datetime.datetime.now())
+    stock_data = yf.download(ticker, start='2019-01-01', end='2023-12-31')
     stock_data.to_csv(file_path)
     print(f"Retrieved stock data for {ticker}.")
 
