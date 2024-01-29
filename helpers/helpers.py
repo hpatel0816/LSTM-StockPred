@@ -1,7 +1,7 @@
 import yfinance as yf
+from tensorflow.keras.models import load_model
 import time
 import uuid
-import datetime
 import os
 
 
@@ -17,6 +17,21 @@ def download_stock_data(ticker, data_folder='data'):
     print(f"Retrieved stock data for {ticker}.")
 
     return stock_data
+
+
+def save_model(model, ticker):
+    model.save(f"model_files/{ticker}_model.h5")
+
+
+def load_saved_model(ticker):
+    model_path = f"model_files/saved_models/{ticker}_model.h5"
+    if os.path.isfile(model_path):
+        model = load_model(model_path)
+        print(f"Loaded existing model for {ticker}.")
+        return model
+    else:
+        print(f"Model file not found for {ticker}.")
+        return None
 
 
 def generate_req_tag():

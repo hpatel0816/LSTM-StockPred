@@ -8,6 +8,7 @@ from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from pandas.tseries.offsets import CustomBusinessDay
+from helpers.helpers import save_model, load_saved_model
 
 
 def load_data(ticker):
@@ -18,7 +19,7 @@ def load_data(ticker):
 
 def extract_features(dataframe):
     # Extract the variables for training
-    data_cols = dataframe[['Open', 'Close','Adj Close']]
+    data_cols = dataframe[['Open', 'Close', 'Mean', 'Max', 'Min']]
     return data_cols.astype(float)
 
 
@@ -47,11 +48,11 @@ def create_model(trainX, trainY):
     model.add(Dropout(0.3))
     model.add(Dense(trainY.shape[1]))
 
-    model.compile(optimizer='sgd', loss='mse')
+    model.compile(optimizer='adam', loss='mse')
     return model
 
 
-def train_model(model, trainX, trainY, epochs=20, batch_size=32, validation_split=0.1):
+def train_model(model, trainX, trainY, epochs=60, batch_size=32, validation_split=0.1):
     history = model.fit(trainX, trainY, epochs=epochs, batch_size=batch_size, validation_split=validation_split, verbose=1)
     return history
 
@@ -101,7 +102,7 @@ def plot_predictions(predict_dates, predicted_vals, df, req_tag):
     plt.close()
 
 
-def predict_stock_price(ticker, req_tag):
+def predict_stock_price(ticker, timeframe, req_tag):
     plt.switch_backend('Agg')
 
     df = load_data(ticker)
@@ -113,15 +114,21 @@ def predict_stock_price(ticker, req_tag):
     scaled_data_df = transform_data(scaler, training_df)
 
     n_future = 1 # Number of days we want to predict future values
-    n_past = 4 # Number of previous days we use to predict future values
+    n_past = 10 # Number of previous days we use to predict future values
     trainX, trainY = prepare_training_data(scaled_data_df, training_df, n_past, n_future)
 
-    model = create_model(trainX, trainY)
-    history = train_model(model, trainX, trainY)
-    plot_training_history(history, req_tag)
+    # Load existing model if available, otherwise create a new one
+    model = load_saved_model(ticker)
+    if model is None:
+        model = create_model(trainX, trainY)
+        history = train_model(model, trainX, trainY)
+        plot_training_history(history, req_tag)
 
-    lookback_window = 16
-    n_days_for_prediction = 15 # Number of days we want to predict the values
+        # Save the trained model
+        save_model(model, ticker)
+
+    lookback_window = int(timeframe) + 1
+    n_days_for_prediction = int(timeframe) # Number of days we want to predict the values
     predict_period_dates = get_training_dates(train_dates, lookback_window, n_days_for_prediction)
 
     prediction = model.predict(trainX[-n_days_for_prediction:])
