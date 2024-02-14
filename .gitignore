@@ -1,3 +1,5 @@
 .venv
 .DS_Store
 *__pycache__
+/model_files/model_eval/*
+/model_files/predictions/*
