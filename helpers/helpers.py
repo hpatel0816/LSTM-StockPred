@@ -20,11 +20,11 @@ def download_stock_data(ticker, data_folder='data'):
 
 
 def save_model(model, ticker):
-    model.save(f"model_files/{ticker}_model.h5")
+    model.save(f"model_files/saved_models/{ticker}_model.keras")
 
 
 def load_saved_model(ticker):
-    model_path = f"model_files/saved_models/{ticker}_model.h5"
+    model_path = f"model_files/saved_models/{ticker}_model.keras"
     if os.path.isfile(model_path):
         model = load_model(model_path)
         print(f"Loaded existing model for {ticker}.")

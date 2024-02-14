@@ -9,6 +9,7 @@ import seaborn as sns
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from pandas.tseries.offsets import CustomBusinessDay
 from helpers.helpers import save_model, load_saved_model
+import plotly.graph_objects as go
 
 
 def load_data(ticker):
@@ -45,14 +46,14 @@ def create_model(trainX, trainY):
     model = Sequential()
     model.add(LSTM(64, activation='relu', input_shape=(trainX.shape[1], trainX.shape[2]), return_sequences=True))
     model.add(LSTM(32, activation='relu', return_sequences=False))
-    model.add(Dropout(0.3))
+    model.add(Dropout(0.35))
     model.add(Dense(trainY.shape[1]))
 
     model.compile(optimizer='adam', loss='mse')
     return model
 
 
-def train_model(model, trainX, trainY, epochs=60, batch_size=32, validation_split=0.1):
+def train_model(model, trainX, trainY, epochs=60, batch_size=32, validation_split=0.15):
     history = model.fit(trainX, trainY, epochs=epochs, batch_size=batch_size, validation_split=validation_split, verbose=1)
     return history
 
@@ -79,7 +80,7 @@ def get_predicted_vals(prediction, scaler, training_df):
     return scaler.inverse_transform(prediction_copies)[:,0]
 
 
-def plot_predictions(predict_dates, predicted_vals, df, req_tag):
+def plot_predictions(predict_dates, predicted_vals, df, req_tag, ticker):
     # Convert timestamp to date
     forecast_dates = [time_i.date() for time_i in predict_dates]
 
@@ -93,17 +94,21 @@ def plot_predictions(predict_dates, predicted_vals, df, req_tag):
     # Set 'Date' as the index for both dataframes
     plot_data = pd.concat([original[['Date', 'Open']], forecast_df[['Date', 'Predicted Open']]])
 
+    # Create Plotly figure
+    fig = go.Figure()
     # Create a line plot using the concatenated data
-    sns.lineplot(x='Date', y='Open', data=plot_data, label='Original Open')
-    sns.lineplot(x='Date', y='Predicted Open', data=plot_data, label='Predicted Open')
+    fig.add_trace(go.Scatter(x=plot_data['Date'], y=plot_data['Open'], mode='lines', name='Original Open'))
+    fig.add_trace(go.Scatter(x=plot_data['Date'], y=plot_data['Predicted Open'], mode='lines', name='Predicted Open'))
+    fig.update_layout(title=f'{ticker} Stock Predictions',
+                      xaxis_title='Date',
+                      yaxis_title='Open Price')
 
     # Save the plot
-    plt.savefig(f"model_files/predictions/prediction.{req_tag}.png") # Save the plot as an image
-    plt.close()
+    fig.write_image(f"model_files/predictions/prediction.{req_tag}.png")
 
 
 def predict_stock_price(ticker, timeframe, req_tag):
-    plt.switch_backend('Agg')
+    #plt.switch_backend('Agg')
 
     df = load_data(ticker)
     # Separate & convert dates to datatime objects for future training/plotting
@@ -114,7 +119,7 @@ def predict_stock_price(ticker, timeframe, req_tag):
     scaled_data_df = transform_data(scaler, training_df)
 
     n_future = 1 # Number of days we want to predict future values
-    n_past = 10 # Number of previous days we use to predict future values
+    n_past = 7 # Number of previous days we use to predict future values
     trainX, trainY = prepare_training_data(scaled_data_df, training_df, n_past, n_future)
 
     # Load existing model if available, otherwise create a new one
@@ -134,5 +139,5 @@ def predict_stock_price(ticker, timeframe, req_tag):
     prediction = model.predict(trainX[-n_days_for_prediction:])
     y_pred_future = get_predicted_vals(prediction, scaler, training_df)
     
-    plot_predictions(predict_period_dates, y_pred_future, df, req_tag)
+    plot_predictions(predict_period_dates, y_pred_future, df, req_tag, ticker)
 
